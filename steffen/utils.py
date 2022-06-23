@@ -78,7 +78,7 @@ def create_images_from_videos(DEFAULT_PATH, metadata):
     return grouped_images, grouped_scores
 
 
-def split_and_shuffle(indices, indices_val, images, labels, split_nr):
+def cross_val_split(indices, indices_val, images, labels, split_nr):
 
     images = np.array(images, dtype=object)
     labels = np.array(labels, dtype=object)
@@ -88,15 +88,6 @@ def split_and_shuffle(indices, indices_val, images, labels, split_nr):
     images_val = flatten(images[indices_val])
     labels_train = flatten(labels[indices_train])
     labels_val = flatten(labels[indices_val])
-
-
-    shuffle_train = np.arange(len(images_train))
-    shuffle_val = np.arange(len(images_val))
-
-    images_train = images_train[shuffle_train]
-    images_val = images_val[shuffle_val]
-    labels_train = labels_train[shuffle_train]
-    labels_val = labels_val[shuffle_val]
 
     print(f'\nsplit {split_nr}/4:')
     print(f'    Total images: {len(images_train) + len(images_val)}')
@@ -111,7 +102,10 @@ def store_split(images_train, images_val, labels_train, labels_val, DEFAULT_PATH
     split_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'split' + str(split_nr))
     Path(split_path).mkdir(parents=True, exist_ok=True)
 
-    for img, label, img_nr in tqdm(zip(images_train, labels_train, range(len(images_train))), 
+    for img, label, img_nr in tqdm(zip(
+                                    images_train,  
+                                    labels_train, 
+                                    range(len(images_train))), 
                                 total=len(images_train), 
                                 desc='Storing training images',
                                 ascii=True
@@ -124,12 +118,15 @@ def store_split(images_train, images_val, labels_train, labels_val, DEFAULT_PATH
         if status == False:
             print(f"Couldn't write image{img_nr}.jpg to " + img_path)
 
-    for img, label, img_nr in tqdm(zip(images_val, labels_val, range(len(images_val))),
+    for img, label, img_nr in tqdm(zip(
+                                    images_val, 
+                                    labels_val, 
+                                    range(len(images_val))),
                                 total=len(images_val),
                                 desc='Storing validation images',
                                 ascii=True
                                 ):
-        img_path = os.path.join(split_path, 'validation', 'score' + str(label))
+        img_path = os.path.join(split_path, 'validation', 'score' + str(int(label)))
         Path(img_path).mkdir(parents=True, exist_ok=True)
 
         filename = os.path.join(img_path, f'image{img_nr}.jpg')

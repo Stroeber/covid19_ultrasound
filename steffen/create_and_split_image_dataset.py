@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
-from utils import remove_data_path, create_images_from_videos, split_and_shuffle, store_split
+from utils import remove_data_path, create_images_from_videos, cross_val_split, store_split
 
 
 if __name__ == '__main__':
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     print('\nStart storing splits:')
     for split_nr in range(len(split_val_indices)):
 
-        images_train, images_val, labels_train, labels_val = split_and_shuffle(
+        images_train, images_val, labels_train, labels_val = cross_val_split(
             indices, 
             split_val_indices[split_nr], 
             grouped_images, 
