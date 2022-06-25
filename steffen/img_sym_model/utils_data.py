@@ -17,25 +17,40 @@ def flatten(xss):
     return np.array([x for xs in xss for x in xs], dtype=object)
 
 
-def remove_data_path(DEFAULT_PATH):
-    path = os.path.join(DEFAULT_PATH, 'steffen', 'data')
+def delete_img_data_folder(DEFAULT_PATH):
+    path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'img_sym_data')
     if os.path.exists(path):
         rmtree(path)
-        print('\nData folder has been deleted and a new random split will be created')
+        print('\nimg_sym_data folder has been deleted and a new random split will be created')
 
 
 def create_images_from_videos(DEFAULT_PATH, metadata):
 
     grouped_images = []
     grouped_scores = []
+    grouped_symptoms = []
     agg_nr_selected = []
 
-    for curr_loc, filename, sev_score in tqdm(
-        zip(
-            metadata['Current location'], 
-            metadata['Filename'],
-            metadata['Lung Severity Score']
-        ), 
+    for (curr_loc, filename, sev_score, 
+    # age, gender,
+     healthy, fever, cough, 
+    respiratory_problems, headache, loss_of_smell_taste, 
+    fatigue, sore_throat, asymptomatic) in tqdm(zip(
+        metadata['Current location'], 
+        metadata['Filename'],
+        metadata['Lung Severity Score'],
+        # metadata['Age'],
+        # metadata['Gender'],
+        metadata['Healthy'],
+        metadata['Fever'],
+        metadata['Cough'],
+        metadata['Respiratory problems'],
+        metadata['Headache'],
+        metadata['Loss of smell/taste'],
+        metadata['Fatigue'],
+        metadata['Sore throat'],
+        metadata['Asymptomatic'],
+        ),
         total=len(metadata['Current location']), 
         desc='Extracting images from videos', 
         ascii=True
@@ -55,6 +70,7 @@ def create_images_from_videos(DEFAULT_PATH, metadata):
             if equal(video.split('.')[0], filename):
                 images = []
                 scores = []
+                symptoms = []
 
                 video_path = os.path.join(dir_path, video)
 
@@ -68,43 +84,56 @@ def create_images_from_videos(DEFAULT_PATH, metadata):
                     if frameId % 3 == 0:
                         images.append(frame)
                         scores.append(sev_score)
+                        symptoms.append([
+                                        # age, gender, 
+                                        healthy, fever, cough, 
+                                        respiratory_problems, headache, loss_of_smell_taste, 
+                                        fatigue, sore_throat, asymptomatic])
                         nr_selected += 1
                             
                 grouped_images.append(images)
                 grouped_scores.append(scores)
+                grouped_symptoms.append(symptoms)
                 cap.release()
                 agg_nr_selected.append(nr_selected)
     print(f'Got an average of {np.mean(agg_nr_selected)} images per video')
-    return grouped_images, grouped_scores
+    return grouped_images, grouped_scores, grouped_symptoms
 
-
-def cross_val_split(indices, indices_val, images, labels, split_nr):
+def cross_val_split(indices, indices_val, images, labels, symptoms, split_nr):
 
     images = np.array(images, dtype=object)
     labels = np.array(labels, dtype=object)
+    symptoms = np.array(symptoms, dtype=object)
 
     indices_train = list(set(indices) - set(indices_val))
     images_train = flatten(images[indices_train])
     images_val = flatten(images[indices_val])
     labels_train = flatten(labels[indices_train])
     labels_val = flatten(labels[indices_val])
+    symptoms_train = flatten(labels[indices_train])
+    symptoms_val = flatten(labels[indices_val])
 
     print(f'\nsplit {split_nr}/4:')
     print(f'    Total images: {len(images_train) + len(images_val)}')
     print(f'    Training images: {len(images_train)}')
     print(f'    Validation Images: {len(images_val)}')
 
-    return images_train, images_val, labels_train, labels_val
+    return images_train, images_val, labels_train, labels_val, symptoms_train, symptoms_val
 
 
-def store_split(images_train, images_val, labels_train, labels_val, DEFAULT_PATH, split_nr):
+def store_split(images_train, images_val, 
+                labels_train, labels_val, 
+                symptoms_train, symptoms_val, 
+                DEFAULT_PATH, split_nr
+                ):
 
-    split_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'split' + str(split_nr))
+    split_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'img_sym_data', 'split' + str(split_nr))
     Path(split_path).mkdir(parents=True, exist_ok=True)
 
-    for img, label, img_nr in tqdm(zip(
+    for img, label, symptoms, id in tqdm(zip(
                                     images_train,  
-                                    labels_train, 
+                                    labels_train,
+                                    symptoms_train, 
                                     range(len(images_train))), 
                                 total=len(images_train), 
                                 desc='Storing training images',
@@ -113,14 +142,14 @@ def store_split(images_train, images_val, labels_train, labels_val, DEFAULT_PATH
         img_path = os.path.join(split_path, 'train', 'score' + str(int(label)))
         Path(img_path).mkdir(parents=True, exist_ok=True)
 
-        filename = os.path.join(img_path, f'image{img_nr}.jpg')
-        status  = cv2.imwrite(filename, img)
-        if status == False:
-            print(f"Couldn't write image{img_nr}.jpg to " + img_path)
+        filename = os.path.join(img_path, str(id) + '.npz')
+        np.savez(filename, image=img, symptoms=symptoms)
 
-    for img, label, img_nr in tqdm(zip(
+
+    for img, label, symptoms, id in tqdm(zip(
                                     images_val, 
                                     labels_val, 
+                                    symptoms_val,
                                     range(len(images_val))),
                                 total=len(images_val),
                                 desc='Storing validation images',
@@ -129,7 +158,5 @@ def store_split(images_train, images_val, labels_train, labels_val, DEFAULT_PATH
         img_path = os.path.join(split_path, 'validation', 'score' + str(int(label)))
         Path(img_path).mkdir(parents=True, exist_ok=True)
 
-        filename = os.path.join(img_path, f'image{img_nr}.jpg')
-        status  = cv2.imwrite(filename, img)
-        if status == False:
-            print(f"Couldn't write image{img_nr}.jpg to " + img_path)
+        filename = os.path.join(img_path, str(id) + '.npz')
+        np.savez(filename, image=img, symptoms=symptoms)

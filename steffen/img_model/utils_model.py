@@ -2,13 +2,15 @@ import os
 import numpy as np
 import cv2
 import tensorflow as tf
+import time
+from tensorflow.keras.applications.vgg16 import preprocess_input
 
 
 def get_data(DEFAULT_PATH, split):
 
     print('Loading data:')
 
-    train_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'split' + str(split), 'train')
+    train_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'img_data', 'split' + str(split), 'train')
     train_images = []
     train_labels = []
     for score_nr in range(4):
@@ -21,7 +23,7 @@ def get_data(DEFAULT_PATH, split):
             train_images.append(img)
             train_labels.append(score_nr)
 
-    val_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'split' + str(split), 'validation')
+    val_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'img_data', 'split' + str(split), 'validation')
     val_images = []
     val_labels = []
     for score_nr in range(4):
@@ -30,10 +32,7 @@ def get_data(DEFAULT_PATH, split):
         for image_name in os.listdir(score_path):
             img_path = os.path.join(score_path, image_name)
             img = cv2.imread(img_path, 1)
-            # print(img.shape)
-            img = cv2.resize(img, (224, 224))
-            # print(img.shape)
-            # exit()            
+            img = cv2.resize(img, (224, 224))        
             val_images.append(img)
             val_labels.append(score_nr)
 
@@ -55,21 +54,46 @@ def create_tf_dataset(train_images, train_labels, val_images, val_labels, batch_
     val_ds = tf.data.Dataset.from_tensor_slices((val_images, val_labels))
 
     print('Done')
-    print('\nApplying preprocessing:')
+    print('Applying preprocessing:')
+    AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.map(lambda image, label: (
         # tf.expand_dims(image/255, -1), 
-        image/255,                   
+        preprocess_input(image),                   
         tf.one_hot(tf.cast(label, tf.int32), 4)
         )) 
     val_ds = val_ds.map(lambda image, label: (
         # tf.expand_dims(image/255, -1), 
-        image/255,  
+        preprocess_input(image),  
         tf.one_hot(tf.cast(label, tf.int32), 4)
         ))
 
-    # AUTOTUNE = tf.data.AUTOTUNE
-    train_ds = train_ds.shuffle(1).batch(batch_size).prefetch(1)
-    val_ds = val_ds.shuffle(1).batch(batch_size).prefetch(1)
+    
+    train_ds = train_ds.shuffle(
+                            train_ds.cardinality(), 
+                            reshuffle_each_iteration=True
+                        ).batch(batch_size).prefetch(AUTOTUNE)
+
+    val_ds = val_ds.shuffle(
+                            train_ds.cardinality(), 
+                            reshuffle_each_iteration=True
+                        ).batch(batch_size).prefetch(AUTOTUNE)
+
+
+    data_augmentation = tf.keras.Sequential([
+        tf.keras.layers.RandomFlip('horizontal_and_vertical'),
+        tf.keras.layers.RandomRotation(0.2),
+        # tf.keras.layers.RandomBrightness(0.2, value_range=[0.0, 1.0]),
+        tf.keras.layers.RandomContrast(0.2),
+    ])
+
+    train_ds = train_ds.map(lambda image, label: (
+        data_augmentation(image, training=True),  label),
+        num_parallel_calls=AUTOTUNE
+        )
+    val_ds = val_ds.map(lambda image, label: (
+        data_augmentation(image, training=True),  label),
+        num_parallel_calls=AUTOTUNE
+        )
 
     print('Done')
 
@@ -143,3 +167,12 @@ def test(model, test_data, loss_function):
     return test_loss, test_accuracy
 
 
+def save_loss_and_accuracy(train_loss, test_loss, accuracy, model_name, split_nr, DEFAULT_PATH, timestr):
+    os.chdir(os.path.join(DEFAULT_PATH, 'steffen', 'model'))
+    model_data_path = os.path.join(os.getcwd(), 'model_data')
+    if not os.path.exists(model_data_path):
+        os.mkdir(model_data_path)
+    os.chdir(model_data_path)
+    # timestr = time.strftime("%Y%m%d-%H%M%S")
+    savefile_name = f'{model_name}_split{split_nr}_{timestr}' #Sample: 'VGG16_split4_20220623-143345'
+    np.savez(savefile_name, train_loss = train_loss, test_loss = test_loss, accuracy=accuracy)
