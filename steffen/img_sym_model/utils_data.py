@@ -6,6 +6,8 @@ from pathlib import Path
 from shutil import rmtree
 from tqdm import tqdm
 
+IMAGE_ID = 0 #For Image storing (Last function)
+
 def equal(a, b):
     # Ignore underscores and minus signs
     regex = re.compile(r'[_-]')
@@ -26,6 +28,8 @@ def delete_img_data_folder(DEFAULT_PATH):
 
 def create_images_from_videos(DEFAULT_PATH, metadata):
 
+    score_count = [0, 0, 0, 0]
+    
     grouped_images = []
     grouped_scores = []
     grouped_symptoms = []
@@ -33,7 +37,7 @@ def create_images_from_videos(DEFAULT_PATH, metadata):
 
     for (curr_loc, filename, sev_score, 
     # age, gender,
-     healthy, fever, cough, 
+    healthy, fever, cough, 
     respiratory_problems, headache, loss_of_smell_taste, 
     fatigue, sore_throat, asymptomatic) in tqdm(zip(
         metadata['Current location'], 
@@ -96,10 +100,39 @@ def create_images_from_videos(DEFAULT_PATH, metadata):
                 grouped_symptoms.append(symptoms)
                 cap.release()
                 agg_nr_selected.append(nr_selected)
+                # if sev_score == 3.0:
+                #     print(filename)
+                # score_count[int(sev_score)] += 1
     print(f'Got an average of {np.mean(agg_nr_selected)} images per video')
+    print(f'score_count: {score_count}')
+    # exit()
     return grouped_images, grouped_scores, grouped_symptoms
 
-def cross_val_split(indices, indices_val, images, labels, symptoms, split_nr):
+
+def group_by_score(grouped_images, grouped_scores, grouped_symptoms):
+    score0 = [[], [], []]   #[[image], [score], [sypmtoms]]
+    score1 = [[], [], []]
+    score2 = [[], [], []]
+    score3 = [[], [], []]
+    scorelist = [score0, score1, score2, score3]
+    for g_img, g_sco, g_sym in zip(grouped_images, grouped_scores, grouped_symptoms):
+        # scorelist[int(g_sco[0])].append([g_img, int(g_sco, g)_sym])
+        # print(g_sco[0])
+        scorelist[int(g_sco[0])][0].append(g_img)
+        scorelist[int(g_sco[0])][1].append(g_sco)
+        scorelist[int(g_sco[0])][2].append(g_sym)
+        # print(scorelist)
+        # exit()
+        
+    # scorelist[0] = np.array(scorelist[0], dtype=object)
+    # scorelist[1] = np.array(scorelist[1], dtype=object)
+    # scorelist[2] = np.array(scorelist[2], dtype=object)
+    # scorelist[3] = np.array(scorelist[3], dtype=object)
+
+    return scorelist
+
+
+def cross_val_split(indices, indices_val, images, labels, symptoms, score_split_nr):
 
     images = np.array(images, dtype=object)
     labels = np.array(labels, dtype=object)
@@ -113,50 +146,41 @@ def cross_val_split(indices, indices_val, images, labels, symptoms, split_nr):
     symptoms_train = flatten(labels[indices_train])
     symptoms_val = flatten(labels[indices_val])
 
-    print(f'\nsplit {split_nr}/4:')
-    print(f'    Total images: {len(images_train) + len(images_val)}')
-    print(f'    Training images: {len(images_train)}')
-    print(f'    Validation Images: {len(images_val)}')
+    # print(f'\nsplit {score_split_nr}/4:')
+    # print(f'    Total images: {len(images_train) + len(images_val)}')
+    # print(f'    Training images: {len(images_train)}')
+    # print(f'    Validation Images: {len(images_val)}')
 
     return images_train, images_val, labels_train, labels_val, symptoms_train, symptoms_val
 
 
-def store_split(images_train, images_val, 
-                labels_train, labels_val, 
-                symptoms_train, symptoms_val, 
-                DEFAULT_PATH, split_nr
-                ):
+def store_split(
+        images_train, images_val, 
+        labels_train, labels_val, 
+        symptoms_train, symptoms_val, 
+        DEFAULT_PATH, score_split_nr
+    ):
 
-    split_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'img_sym_data', 'split' + str(split_nr))
+    global IMAGE_ID
+
+    split_path = os.path.join(DEFAULT_PATH, 'steffen', 'data', 'img_sym_data', 'split' + str(score_split_nr))
     Path(split_path).mkdir(parents=True, exist_ok=True)
 
-    for img, label, symptoms, id in tqdm(zip(
-                                    images_train,  
-                                    labels_train,
-                                    symptoms_train, 
-                                    range(len(images_train))), 
-                                total=len(images_train), 
-                                desc='Storing training images',
-                                ascii=True
-                                ):
+    for img, label, symptoms in zip(images_train, labels_train, symptoms_train):
+
         img_path = os.path.join(split_path, 'train', 'score' + str(int(label)))
         Path(img_path).mkdir(parents=True, exist_ok=True)
 
-        filename = os.path.join(img_path, str(id) + '.npz')
+        filename = os.path.join(img_path, str(IMAGE_ID) + '.npz')
         np.savez(filename, image=img, symptoms=symptoms)
+        IMAGE_ID += 1
 
 
-    for img, label, symptoms, id in tqdm(zip(
-                                    images_val, 
-                                    labels_val, 
-                                    symptoms_val,
-                                    range(len(images_val))),
-                                total=len(images_val),
-                                desc='Storing validation images',
-                                ascii=True
-                                ):
+    for img, label, symptoms in zip(images_val, labels_val, symptoms_val):
+
         img_path = os.path.join(split_path, 'validation', 'score' + str(int(label)))
         Path(img_path).mkdir(parents=True, exist_ok=True)
 
-        filename = os.path.join(img_path, str(id) + '.npz')
+        filename = os.path.join(img_path, str(IMAGE_ID) + '.npz')
         np.savez(filename, image=img, symptoms=symptoms)
+        IMAGE_ID += 1
