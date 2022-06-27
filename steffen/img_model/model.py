@@ -55,43 +55,5 @@ def get_model(
 
     return model
 
-# class MultimodalModel(tf.keras.Model):
 
-#     def __init__(self, num_classes, dropout=0.5, img_feat_size = 16, input_size = (224, 224, 3)):
-#         super(MultimodalModel, self).__init__()
-#         self.CNNModel = VGG16(
-#             input_shape = input_size,
-#             include_top = False,
-#             weights = 'imagenet'
-#         )
-#         self.CNNModel.trainable = False
-#         # self.avg_pool_2d = AveragePooling2D(pool_size=(4, 4))
-#         self.flatten = Flatten()
-#         self.dense_block1 = [
-#             Dense(img_feat_size),
-#             BatchNormalization(),
-#             LeakyReLU()
-#         ]
-#         self.dropout1 = Dropout(dropout)
-#         self.concat = concatenate()
-#         self.dense_block2 = [
-#             Dense(img_feat_size),
-#             BatchNormalization(),
-#             LeakyReLU()
-#         ]
-#         self.dropout2 = Dropout(dropout)
-#         self.output = Dense(num_classes, activation=tf.nn.sigmoid)
-
-#     def call(self, input):
-#         x = self.CNNModel(input[0])
-#         x = self.flatten(x)
-#         for layer in self.dense_block1:                     #Ist ausschreiben schneller als for loop?
-#             x = layer(x)
-#         x = self.dropout(x)
-#         x = self.concat(x, input[1])
-#         for layer in self.dense_block2:
-#             x = layer(x)
-#         x = self.dropout2(x)
-#         output = self.output(x)
-#         return output
         
