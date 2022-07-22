@@ -78,6 +78,19 @@ def create_images_from_videos(DEFAULT_PATH, metadata):
     return grouped_images, grouped_scores
 
 
+def group_by_score(grouped_images, grouped_scores):
+    score0 = [[], []]   #[[image], [score]]
+    score1 = [[], []]
+    score2 = [[], []]
+    score3 = [[], []]
+    scorelist = [score0, score1, score2, score3]
+    for g_img, g_sco in zip(grouped_images, grouped_scores):
+        scorelist[int(g_sco[0])][0].append(g_img)
+        scorelist[int(g_sco[0])][1].append(g_sco)
+
+    return scorelist
+
+
 def cross_val_split(indices, indices_val, images, labels, split_nr):
 
     images = np.array(images, dtype=object)
@@ -91,10 +104,10 @@ def cross_val_split(indices, indices_val, images, labels, split_nr):
     labels_train = flatten(labels[indices_train])
     labels_val = flatten(labels[indices_val])
 
-    print(f'\nsplit {split_nr}/4:')
-    print(f'    Total images: {len(images_train) + len(images_val)}')
-    print(f'    Training images: {len(images_train)}')
-    print(f'    Validation Images: {len(images_val)}')
+    # print(f'\nsplit {split_nr}/4:')
+    # print(f'    Total images: {len(images_train) + len(images_val)}')
+    # print(f'    Training images: {len(images_train)}')
+    # print(f'    Validation Images: {len(images_val)}')
 
     return images_train, images_val, labels_train, labels_val
 

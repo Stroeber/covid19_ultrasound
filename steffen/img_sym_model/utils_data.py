@@ -94,18 +94,21 @@ def create_images_from_videos(DEFAULT_PATH, metadata):
                                         respiratory_problems, headache, loss_of_smell_taste, 
                                         fatigue, sore_throat, asymptomatic])
                         nr_selected += 1
+                        score_count[int(sev_score)] += 1
                             
                 grouped_images.append(images)
                 grouped_scores.append(scores)
                 grouped_symptoms.append(symptoms)
                 cap.release()
                 agg_nr_selected.append(nr_selected)
-                # if sev_score == 3.0:
-                #     print(filename)
-                # score_count[int(sev_score)] += 1
+                
     print(f'Got an average of {np.mean(agg_nr_selected)} images per video')
-    print(f'score_count: {score_count}')
-    # exit()
+    print(f'Images per severity score:\n')
+    print(f'    Score0: {score_count[0]}')
+    print(f'    Score1: {score_count[1]}')
+    print(f'    Score2: {score_count[2]}')
+    print(f'    Score3: {score_count[3]}')
+
     return grouped_images, grouped_scores, grouped_symptoms
 
 
@@ -116,18 +119,9 @@ def group_by_score(grouped_images, grouped_scores, grouped_symptoms):
     score3 = [[], [], []]
     scorelist = [score0, score1, score2, score3]
     for g_img, g_sco, g_sym in zip(grouped_images, grouped_scores, grouped_symptoms):
-        # scorelist[int(g_sco[0])].append([g_img, int(g_sco, g)_sym])
-        # print(g_sco[0])
         scorelist[int(g_sco[0])][0].append(g_img)
         scorelist[int(g_sco[0])][1].append(g_sco)
         scorelist[int(g_sco[0])][2].append(g_sym)
-        # print(scorelist)
-        # exit()
-        
-    # scorelist[0] = np.array(scorelist[0], dtype=object)
-    # scorelist[1] = np.array(scorelist[1], dtype=object)
-    # scorelist[2] = np.array(scorelist[2], dtype=object)
-    # scorelist[3] = np.array(scorelist[3], dtype=object)
 
     return scorelist
 

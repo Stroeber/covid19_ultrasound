@@ -1,7 +1,13 @@
 import os 
 import pandas as pd
 import numpy as np
-from utils_data import delete_img_data_folder, create_images_from_videos, group_by_score, cross_val_split, store_split
+from utils_data import (
+    delete_img_data_folder, 
+    create_images_from_videos,
+    group_by_score, 
+    cross_val_split, 
+    store_split
+)
 
 
 if __name__ == '__main__':
